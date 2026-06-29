@@ -26,6 +26,22 @@ func _ready() -> void:
 	_init_player()
 	load_level(TEST_LEVEL_GRASSLAND)
 	
+## Called for loading a level scene.
+## NOTE: The input level_scnee must extend BaseLevel
+func load_level(level_scene : String) -> void:
+		# Make sure this is called during idle time
+		_deferred_load_level.call_deferred(level_scene)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not OS.is_debug_build(): return # Nur im DebugModus - außerhalb von shipping
+	
+	if event.is_action_pressed(&"debug_quit"):
+		quit_game()
+
+func quit_game() -> void:
+	get_tree().root.propagate_notification(NOTIFICATION_WM_CLOSE_REQUEST)
+	get_tree().quit()
+
 func _init_player() -> void:
 	var player_scene : PackedScene = ResourceLoader.load(PLAYER_SCENE_UID) as PackedScene
 	if not player_scene:
@@ -37,13 +53,8 @@ func _init_player() -> void:
 		push_error("Loaded player scene does not extend player or does not exist: " + PLAYER_SCENE_UID)
 		return
 	entity_root.add_child(player)
-		
-## Called for loading a level scene.
-## NOTE: The input level_scnee must extend BaseLevel
-func load_level(level_scene : String) -> void:
-		# Make sure this is called during idle time
-		_deferred_load_level.call_deferred(level_scene)
-		
+	
+
 func _deferred_load_level(level_scene_uid: String) -> void:
 	var new_level: BaseLevel = null
 	
