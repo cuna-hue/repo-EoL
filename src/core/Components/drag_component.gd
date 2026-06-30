@@ -12,8 +12,14 @@ var drag_distance: float = 0.0
 
 var myItem: BaseItem = null
 
-signal drag_started()
-signal drag_stopped()
+## Sendet ein Signal, wenn ein Drag initiiert wurde[br][br]Achtung: Die DragComponent handelt unabhängig vom Item und verwaltet ihren is_dragging Status selbst - also zumindest den Start
+signal drag_started(drag: DragComponent)
+
+## Sendet ein Signal, wenn abgelegt werden soll[br][br]ACHTUNG: Das ist nur ein Vorschlag! Es muss bestätigt werden durch das BaseItem, da sonst nicht end_drag() aufgerufen und das Objekt weiter bewegt wird.
+signal drag_stopped(drag: DragComponent)
+
+## Sendet ein Signal bei jeder Bewegung des Objektes.[br][br]Die neue Position wird übergeben. [br][br](Aktuell noch keine Verwendung)
+signal drag_moved(newPos: Vector2)
 
 var item_root: Node2D = null
 
@@ -38,7 +44,6 @@ func _input_event(_viewport: Viewport, event: InputEvent, _shape_idx: int) -> vo
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		_try_start_drag()
 
-
 func _input(event: InputEvent) -> void:
 	if not is_dragging: return # Inputs nur überwachen, wenn Item gedraggt wird. 
 
@@ -46,24 +51,19 @@ func _input(event: InputEvent) -> void:
 		var target_pos: Vector2 = get_global_mouse_position() - drag_offset
 		drag_distance += myItem.global_position.distance_to(target_pos)
 		myItem.global_position = target_pos
-
-		##############################################################
-		## Hier muss das Signal zum Updaten der Position rein
-		##############################################################
+		drag_moved.emit(target_pos)			# DragComponent meldet neue Position
 
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
 		stop_drag()
-
 
 ## ===============================================================
 ## Drag starten
 ## ===============================================================
 func _try_start_drag() -> void:
 	if _is_topmost_under_mouse():
-		call_deferred("_start_drag")
-
-
-func _start_drag() -> void:
+		call_deferred("_start_drag")	#----.
+										#    |
+func _start_drag() -> void:				# <--'
 	if is_dragging: return
 	is_dragging = true
 	drag_distance = 0.0
@@ -78,7 +78,7 @@ func _start_drag() -> void:
 	myItem.global_position = old_global_pos		# Durch Repositionierung (_bring_to_front) ändert sich WeltPosition -> hier zurückgesetzt
 	drag_offset = mouse_pos - myItem.global_position # Entsprechend muss auch der Offset neu berechnet werden
 
-	drag_started.emit()
+	drag_started.emit(self)
 
 
 ## ===============================================================
@@ -93,33 +93,38 @@ func stop_drag() -> void:
 	if best_storage and _can_drop_on_storage(best_storage):
 		_snap_to_storage(best_storage)
 		_reparent_to_storage(best_storage)
-		is_dragging = false
-		drag_distance = 0.0
-		drag_stopped.emit(myItem)
+		drag_stopped.emit(self)
 
 	elif best_storage:
 		# Optional: kleines visuelles Feedback, dass Drop nicht möglich war
 		return
 	else:
-		is_dragging = false
-		drag_distance = 0.0
-		drag_stopped.emit(myItem)
-	
+		drag_stopped.emit(self)
+
+func end_drag() -> void:
+	is_dragging = false
+	drag_distance = 0.0
+
 
 func _find_best_storage_for_snapping() -> StorageComponent:
 	
 	var best_storage: StorageComponent = null
 	var best_height: float = -INF
 	var best_dist: float = INF
-	var target_height: float = -INF
-	var final_target_height_found = false
+#	var target_height: float = -INF
+#	var final_target_height_found: bool = false
 	
 	var mouse_pos: Vector2 = get_global_mouse_position()
 	var closest_comp: ItemComponent = _get_closest_item_component_to(mouse_pos)
 	
 	print("--- DEBUG FIND BEST STORAGE --- Mouse: ", mouse_pos)
-	print("  Closest Comp: ", closest_comp.name if closest_comp else "null")
-	
+	var comp_name: String = "null" 
+	var comp_path: String = "not found"
+	if closest_comp != null: 
+		comp_name = closest_comp.name
+		comp_path = closest_comp.get_path()
+	print(" Closest Comp: ", comp_name, " Path: ", comp_path)
+
 	if not closest_comp:
 		print("→ Abbruch: Keine closest_comp gefunden")
 		return null

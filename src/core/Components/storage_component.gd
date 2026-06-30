@@ -28,7 +28,7 @@ func is_accepting_itemComponent(item_comp: ItemComponent) -> bool:
 
 ## Prüft ob ein ItemContainer darüber liegt
 func _has_already_Item() -> bool:
-	var all_itemComponents: Array = get_parent().get_children()
+	#var all_itemComponents: Array = get_parent().get_children()
 	return false
 
 ## Funktion gibt wieder ob es sich um [color=green]self[/color] oder eines seiner [color=green]children[/color] handelt.

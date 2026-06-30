@@ -16,6 +16,7 @@ var total_height: float = 0:
 
 ## Gibt an, ob das BaseItem sich bewegt.[br][br]Idee: Nicht nur durch Drag können Objekte Bewegt werden. Vielleicht auch andere Events. Das könnte aber zu ähnlichen Effekten wie beim Drag führen.
 var is_moving: bool = false		
+var itemParts_comp: ItemPartsComponent = null
 
 func _ready() -> void:
 	# Signal vom DragComponent verbinden
@@ -23,13 +24,9 @@ func _ready() -> void:
 	if drag_comp:
 		drag_comp.drag_stopped.connect(_on_drag_stopped)
 		drag_comp.drag_started.connect(_on_drag_started)
-	var itemParts_comp: ItemPartsComponent = get_node_or_null("ItemPartsComponent") 
-	if itemParts_comp:
-		itemParts_comp.placement_updated.connect(_on_placement_update)
+		drag_comp.drag_moved.connect(_on_drag_moved)
+	itemParts_comp = get_node_or_null("ItemPartsComponent") 
 
-
-func welcome_child(new_BaseItem: BaseItem) -> void:
-	new_BaseItem.total_height = self.total_height + new_BaseItem.height
 
 ## Hilfsfunktion - Wird verwendet in total_height zum automatischen Setzen der Höhe aller Children und diese wiederum aller ihrer Children
 func set_children_on_own_height() -> void:
@@ -37,13 +34,13 @@ func set_children_on_own_height() -> void:
 		if child is not BaseItem: continue	
 		child.total_height = self.total_height
 
-func _on_drag_started() -> void:
+## Wird aufgerufen, wenn das Item per Maus bewegt wird (angefangen zu bewegen)
+func _on_drag_started(_drag: DragComponent) -> void:
 	total_height = 0.0
 	is_moving = true
 	
-
 ## Wird aufgerufen, wenn dieses Item (oder ein Child) abgelegt wurde
-func _on_drag_stopped() -> void:
+func _on_drag_stopped(drag: DragComponent) -> void:
 	# 1. prüfen ob abgelegt werden kann --> Feedback an DragComponent
 	
 	#Hier sind wir gerade: DragComponent muss neu geschrieben werden. 
@@ -54,8 +51,19 @@ func _on_drag_stopped() -> void:
 	# 2. ablegen und neue Höhe berechnen
 	total_height = _recalculate_height()
 	is_moving = false
+	if not drag:
+		push_warning("WARNING: eine DragComponent hat ein 'drag_stop'-Signal ohne DragComponent (self) gesendet.")
+		return
+	if not itemParts_comp: 
+		drag.end_drag() # Item hat keine ItemComponent = kann nicht snappen
+	elif itemParts_comp.can_be_placed():
+		drag.end_drag()
 	
-func _on_placement_update() -> void:
+## Wenn Objekt bewegt wird
+func _on_drag_moved(_newPos: Vector2) -> void:
+	itemParts_comp.can_be_placed()
+
+func _on_item_placement_update() -> void:
 	# Bei Bewegung updaten ob abgelegt werden kann
 	pass
 

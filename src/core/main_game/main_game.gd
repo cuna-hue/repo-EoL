@@ -50,7 +50,7 @@ func _init_player() -> void:
 	
 	player = player_scene.instantiate() as Player
 	if not player:
-		push_error("Loaded player scene does not extend player or does not exist: " + PLAYER_SCENE_UID)
+		# push_error("Loaded player scene does not extend player or does not exist: " + PLAYER_SCENE_UID)
 		return
 	entity_root.add_child(player)
 	
@@ -64,7 +64,7 @@ func _deferred_load_level(level_scene_uid: String) -> void:
 	new_level = new_level_packed.instantiate() as BaseLevel
 		
 	if not new_level:
-		push_error(("Loaded level is not of type level or does not exist"))
+		# push_error(("Loaded level is not of type level or does not exist"))
 		return
 		# FUTURE (main menu) Should have a fall back scene
 	
