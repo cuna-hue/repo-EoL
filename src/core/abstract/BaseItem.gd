@@ -17,6 +17,7 @@ var total_height: float = 0.0:
 var movement_distance: float = 0.0
 var total_movement_distance: float = 0.0
 
+var Visual_comp: 	Node2D				= null
 var ItemArea:	 	BaseItemArea 		= null
 var item_root: 		ItemRoot 			= null
 var itemParts_comp: ItemPartsComponent 	= null
@@ -27,6 +28,11 @@ var is_dragging: 	bool 				= false
 
 ## Gibt an, ob das BaseItem sich bewegt.[br][br]Trennung von Drag ist bewusst: auch andere Systeme können Bewegung auslösen (Snap, Reparent, Events, AI, etc.).
 var is_moving: bool = false		
+
+var _shake_tween: Tween = null
+const SHAKE_CANCEL_DISTANCE: float = 10.0
+
+#Code-Beginn ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## Initialisiert das Item nach Node-Aufbau.[br]
 ## Verbindet Drag-Signale, setzt Referenzen auf Kernkomponenten und registriert sich im ItemRoot.
@@ -40,8 +46,9 @@ func _ready() -> void:
 	ItemArea   = get_node_or_null("Area2D") 
 	if ItemArea: ItemArea.myItem = self
 
-	itemParts_comp = get_node_or_null("ItemPartsComponent") 
-	inventory_Comp = get_node_or_null("InventoryComponent") 
+	Visual_comp		= get_node_or_null("VisualComponent")
+	itemParts_comp 	= get_node_or_null("ItemPartsComponent") 
+	inventory_Comp 	= get_node_or_null("InventoryComponent") 
 	
 	await get_tree().process_frame
 
@@ -87,6 +94,9 @@ func _on_drag_stopped(drag: DragComponent) -> void:
 			is_moving = false
 			drag.end_drag()
 
+		if bi_status == ItemComponent.PlacementState.CANNOT_PLACE:
+			shake()
+
 ## Aktualisiert Position während Drag und triggert Placement-Analyse.[br]
 ## Berechnet Bewegung, setzt globale Position und aktualisiert Placement-Status.
 func _on_drag_moved(newPos: Vector2) -> void:
@@ -131,11 +141,6 @@ func _bring_to_front() -> void:
 	item_root.add_child(self)
 	item_root.move_child(self, -1)
 	global_position = old_position
-
-## Platzhalter für zukünftige Interaktionslogik
-func _on_item_placement_update() -> void:
-	## Wird bei Placement-Änderungen aufgerufen (derzeit ungenutzt).
-	pass
 
 ## Berechnet Gesamt-Höhe basierend auf Parent-Höhe
 func _recalculate_height() -> float:
@@ -189,3 +194,25 @@ func get_component(component_type: Variant) -> BaseItemComponent:
 		if is_instance_of(component, component_type):
 			return component
 	return null
+
+## Lässt das Item kurz nach links und rechts wackeln.
+
+func shake() -> void:
+	shake_stop()
+	
+	_shake_tween = create_tween()
+	_shake_tween.set_trans(Tween.TRANS_SINE)
+	_shake_tween.set_ease(Tween.EASE_IN_OUT)
+	
+	_shake_tween.tween_property(Visual_comp, "position:x", Visual_comp.position.x - 16, 0.1)
+	_shake_tween.tween_property(Visual_comp, "position:x", Visual_comp.position.x + 16, 0.2)
+	_shake_tween.tween_property(Visual_comp, "position:x", Visual_comp.position.x, 0.1)
+
+	_shake_tween.finished.connect(func() -> void:
+		_shake_tween = null
+	)
+func shake_stop() -> void:
+	if _shake_tween:
+		_shake_tween.kill()
+		_shake_tween = null
+		Visual_comp.position = Vector2.ZERO
